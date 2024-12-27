@@ -1,0 +1,27 @@
+[package]
+name = "kite"
+version = "0.2.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies]
+bevy_egui = "0.31.1"
+bevy-inspector-egui = "0.28.0"
+#bevy_flurx_wry = "0.1.0-alpha1"
+#bevy_rapier2d = { version = "*", features = [ "simd-stable", "debug-render-2d" ] }
+bevy_light_2d = "0.5.0"
+avian2d = "0.2.0"
+rand = "0.8.5"
+paste = "1.0.15"
+earcutr = "0.4.3"
+
+[dependencies.bevy]
+version = "0.15.0"
+default-features = true
+features = ["flac", "jpeg", "wayland"]
+
+[dependencies.bevy_asset_loader]
+version = "0.22.0"
+features = ["2d", "progress_tracking", "standard_dynamic_assets"]
