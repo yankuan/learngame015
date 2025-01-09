@@ -19,7 +19,7 @@ use bevy::{
 pub const SPRITE_MATERIAL_SHADER_HANDLE: Handle<Shader> =
     Handle::weak_from_u128(8267429772218888889);
 
-#[derive(AsBindGroup, Debug, Clone, Asset, Reflect, PartialEq)]
+#[derive(Component, AsBindGroup, Debug, Clone, Asset, Reflect, PartialEq)]
 pub struct AnimationMaterial {
     #[texture(1)]
     #[sampler(2)]

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashSet;
 use bevy::{render::primitives::Aabb, sprite::*, utils::hashbrown::HashMap};
-use crate::consts::*;
+use crate::{consts::*, mat};
 use crate::math::*;
 use crate::macros::*;
 use crate::game::*;
@@ -189,19 +189,18 @@ impl AnimationManager {
         self.map.get(&self.key).unwrap().clone()
     }
 
-    //impl_animation_manager_field!(key, String);
-    //impl_animation_manager_field!(points, Vec<Vec2>);
-    //impl_animation_manager_field!(growth, AnimationGrowth);
-    //impl_animation_manager_field!(offset, Vec3);
-    //impl_animation_manager_field!(scale, Vec2);
-    //impl_animation_manager_field!(render_layers, RenderLayers);
-    //impl_animation_manager_field!(hidden, bool);
-    //impl_animation_manager_field!(scroll, Vec2);
-    //impl_animation_manager_field!(flip_x, bool);
-    //impl_animation_manager_field!(flip_y, bool);
+    impl_animation_manager_field!(key, String);
+    impl_animation_manager_field!(points, Vec<Vec2>);
+    impl_animation_manager_field!(growth, AnimationGrowth);
+    impl_animation_manager_field!(offset, Vec3);
+    impl_animation_manager_field!(scale, Vec2);
+    impl_animation_manager_field!(render_layers, RenderLayers);
+    impl_animation_manager_field!(hidden, bool);
+    impl_animation_manager_field!(scroll, Vec2);
+    impl_animation_manager_field!(flip_x, bool);
+    impl_animation_manager_field!(flip_y, bool);
 
     /// Resets the key and automatically sets the points to match the new sprite
-    /* 
     pub fn reset_key_with_points(&mut self, val: impl Into<String>, commands: &mut Commands) {
         let key: String = val.into();
         self.reset_key(key.clone(), commands);
@@ -210,7 +209,6 @@ impl AnimationManager {
         self.reset_points(points, commands);
         self.reset_force_index(0);
     }
-    */
     pub fn reset_force_index(&mut self, ix: u32) {
         self.force_index = Some(ix);
     }
@@ -303,6 +301,7 @@ pub struct MultiAnimationManager {
     pub map: HashMap<String, AnimationManager>,
 }
 impl MultiAnimationManager {
+
     /// Constructs a new multi animation manager from a single animation manager
     pub fn from_single(single: AnimationManager) -> Self {
         let mut map = HashMap::new();
@@ -327,17 +326,17 @@ impl MultiAnimationManager {
         outer: SpriteInfo,
         width: f32,
     ) -> Self {
-        /* 
+        
         let inner =
             AnimationManager::single_static(inner).with_points(outline_points(&points, -width));
         let outer = AnimationManager::single_static(outer)
             .with_points(points.clone())
             .with_offset(-Vec3::Z);
-        */
+        
         let mut map = HashMap::new();
        
-        //map.insert("inner".to_string(), inner);
-        //map.insert("outer".to_string(), outer);
+        map.insert("inner".to_string(), inner);
+        map.insert("outer".to_string(), outer);
 
         Self { map }
          
@@ -368,6 +367,9 @@ struct AnimationBodyMarker {
     key: String,
 }
 
+#[derive(Component, Default, Clone, Reflect)]
+struct AnimationMaterialComponent(Handle<mat::AnimationMaterial>);  
+
 #[derive(Bundle, Default)]
 struct AnimationBundle {
       name: Name,
@@ -377,9 +379,10 @@ struct AnimationBundle {
       pace: AnimationData,
       render_layers: RenderLayers,
       mesh: Mesh2d,
-      material:  AnimationGraphHandle,
-      spatial: SpatialBundle,
+      material: AnimationMaterialComponent,
+      spatial: Transform,
   }
+
 
 /// Looks for AnimationManagers that don't have AnimationBody and spawns them
 fn stabilize_multi_animations(
@@ -426,127 +429,128 @@ fn stabilize_multi_animations(
 struct AnimationStatic;
 
 fn update_animation_bodies(
-      mut commands: Commands,
-      multis: Query<(Entity, &MultiAnimationManager)>,
-      mut bodies: Query<
-          (
-              Entity,
-              &Parent,
-              &AnimationBodyMarker,
-              &mut AnimationMap,
-              &mut AnimationData,
-              &mut Transform,
-              &mut Visibility,
-              &Mesh2d,
-              &AnimationGraphHandle,
-          ),
-          Without<AnimationStable>,
-      >,
-      asset_server: Res<AssetServer>,
-      mut mats: ResMut<Assets<AnimationMaterial>>,
-      mut meshes: ResMut<Assets<Mesh>>,
-  ) {
-      //let mut killed_mids = HashSet::new();
-      for (
-            eid,
-            parent,
-            body,
-            mut map,
-            mut data,
-            mut tran,
-            mut vis,
-            old_mesh_handle,
-            old_mat_handle,
-        ) in bodies.iter_mut()
-        {
-            let (manager, current_node) = {
-                  let Ok((mid, multi)) = multis.get(parent.get()) else {
+    mut commands: Commands,
+    multis: Query<(Entity, &MultiAnimationManager)>,
+    mut bodies: Query<
+        (
+            Entity,
+            &Parent,
+            &AnimationBodyMarker,
+            &mut AnimationMap,
+            &mut AnimationData,
+            &mut Transform,
+            &mut Visibility,
+            &Mesh2d,
+            &AnimationMaterialComponent,
+        ),
+        Without<AnimationStable>,
+    >,
+    asset_server: Res<AssetServer>,
+    mut mats: ResMut<Assets<AnimationMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    //let mut killed_mids = HashSet::new();
+    for (
+          eid,
+          parent,
+          body,
+          mut map,
+          mut data,
+          mut tran,
+          mut vis,
+          old_mesh_handle,
+          old_mat_handle,
+      ) in bodies.iter_mut()
+      {
+          let (manager, current_node) = {
+                let Ok((mid, multi)) = multis.get(parent.get()) else {
+                    continue;
+                };
+  
+                let Some(manager) = multi.map.get(&body.key) else {
+                    continue;
+                };
+                if manager.key.as_str() == "despawn" {
+                      commands.entity(mid).despawn_recursive();
+                      //killed_mids.insert(mid);
                       continue;
-                  };
+                }
+                let current_node = manager.current_node();
+                (manager, current_node)
+          };
+         
+            // Update the handle map
+          for (key, node) in manager.map.iter() {
+          
+                if !map.handle_map.contains_key(key) {
+                      //println!("{:?}",&node.sprite.path);
+                      let handle = asset_server.load(&node.sprite.path);
+                      map.handle_map.insert(key.clone(), handle);
+                }
+          }
+          // Update the visibility
+          *vis = if manager.hidden {
+                Visibility::Hidden
+          } else {
+                Visibility::Inherited
+          };
+          // Update the data, remembering to add/remove `AnimationStatic` as needed to save us effort
+          // NOTE: We also add AnimationStatic whenever this node is hidden to avoid work
+          data.length = current_node.length;
+          data.spf = 1.0 / current_node.fps;
+          data.scroll = manager.scroll;
+          if (data.length == 1 || manager.hidden)
+                && !(data.scroll.length_squared() > 0.0)
+                && (data.flip_x == manager.flip_x)
+          {
+                //println!("1---------");
+                commands.entity(eid).insert(AnimationStatic);
+          } else {
+                //println!("2---------");
+                commands.entity(eid).remove::<AnimationStatic>();
+          }
+
+
+          data.flip_x = manager.flip_x;
+          data.flip_y = manager.flip_y;
+          // Update the translation and scale
+          tran.translation = manager.offset;
+          if data.flip_x {
+                tran.translation.x *= -1.0;
+          }
+          if data.flip_y {
+                tran.translation.y *= -1.0;
+          }
+          tran.scale.x = manager.scale.x;
+          tran.scale.y = manager.scale.y;
+          // Redo the mesh
+          let mesh_size = uvec2_bound(&manager.points);
+          let x_rep = mesh_size.x as f32 / current_node.sprite.size.x as f32;
+          let y_rep = mesh_size.y as f32 / current_node.sprite.size.y as f32;
+          let image_handle = map.handle_map.get(&manager.key).unwrap().clone();
+          let matss = AnimationMaterial::from_handle(
+                image_handle,
+                data.length,
+                Vec2::new(x_rep, y_rep),
+                current_node.sprite.color,
+          );
     
-                  let Some(manager) = multi.map.get(&body.key) else {
-                      continue;
-                  };
-                  if manager.key.as_str() == "despawn" {
-                        commands.entity(mid).despawn_recursive();
-                        //killed_mids.insert(mid);
-                        continue;
-                  }
-                  let current_node = manager.current_node();
-                  (manager, current_node)
-            };
-           
-              // Update the handle map
-            for (key, node) in manager.map.iter() {
-            
-                  if !map.handle_map.contains_key(key) {
-                        //println!("{:?}",&node.sprite.path);
-                        let handle = asset_server.load(&node.sprite.path);
-                        map.handle_map.insert(key.clone(), handle);
-                  }
-            }
-            // Update the visibility
-            *vis = if manager.hidden {
-                  Visibility::Hidden
-            } else {
-                  Visibility::Inherited
-            };
-            // Update the data, remembering to add/remove `AnimationStatic` as needed to save us effort
-            // NOTE: We also add AnimationStatic whenever this node is hidden to avoid work
-            data.length = current_node.length;
-            data.spf = 1.0 / current_node.fps;
-            data.scroll = manager.scroll;
-            if (data.length == 1 || manager.hidden)
-                  && !(data.scroll.length_squared() > 0.0)
-                  && (data.flip_x == manager.flip_x)
-            {
-                  //println!("1---------");
-                  commands.entity(eid).insert(AnimationStatic);
-            } else {
-                  //println!("2---------");
-                  commands.entity(eid).remove::<AnimationStatic>();
-            }
+          let mat_ass = mats.add(matss);
+          // TODO: I can see a world where points live on the node, not the manager
+          // Then we might be able to cache the work of making these meshes? Idk how much mem that would take
+          let mesh = points_to_mesh(&manager.points, &mut meshes);
+          commands.entity(eid).insert(AnimationMaterialComponent(mat_ass));
+          commands.entity(eid).insert(mesh);
+          commands.entity(eid).remove::<Aabb>(); // Makes the engine recalculate the Aabb so culling is right
 
+          // Remove the old mat
+          mats.remove(old_mat_handle.0.id());
+          meshes.remove(old_mesh_handle.id());
 
-            data.flip_x = manager.flip_x;
-            data.flip_y = manager.flip_y;
-            // Update the translation and scale
-            tran.translation = manager.offset;
-            if data.flip_x {
-                  tran.translation.x *= -1.0;
-            }
-            if data.flip_y {
-                  tran.translation.y *= -1.0;
-            }
-            tran.scale.x = manager.scale.x;
-            tran.scale.y = manager.scale.y;
-            // Redo the mesh
-            let mesh_size = uvec2_bound(&manager.points);
-            let x_rep = mesh_size.x as f32 / current_node.sprite.size.x as f32;
-            let y_rep = mesh_size.y as f32 / current_node.sprite.size.y as f32;
-            let image_handle = map.handle_map.get(&manager.key).unwrap().clone();
-            let mat = AnimationMaterial::from_handle(
-                  image_handle,
-                  data.length,
-                  Vec2::new(x_rep, y_rep),
-                  current_node.sprite.color,
-            );
-            let mat_ass = mats.add(mat);
-            // TODO: I can see a world where points live on the node, not the manager
-            // Then we might be able to cache the work of making these meshes? Idk how much mem that would take
-            let mesh = points_to_mesh(&manager.points, &mut meshes);
-            //commands.entity(eid).insert(mat_ass);
-            commands.entity(eid).insert(mesh);
-            commands.entity(eid).remove::<Aabb>(); // Makes the engine recalculate the Aabb so culling is right
-
-            // Remove the old mat
-            //mats.remove(old_mat_handle.id());
-            meshes.remove(old_mesh_handle.id());
-
-            // Finally mark this animation as stable
-            commands.entity(eid).insert(AnimationStable);
-      }
-  }
+          // Finally mark this animation as stable
+          commands.entity(eid).insert(AnimationStable);
+    }
+}
 
   
 /// Actually play the animations. Happens during the FixedUpdate step.
@@ -556,7 +560,7 @@ fn play_animations(
           (
               &Parent,
               &AnimationBodyMarker,
-              &AnimationGraphHandle,
+              &AnimationMaterialComponent,
               &mut AnimationIndex,
               &AnimationData,
           ),
@@ -574,9 +578,9 @@ fn play_animations(
           };
           let manager = multi.manager_mut(&body.key);
           let current_node = manager.current_node();
-          //let Some(mat) = mats.get_mut(mat_handle.id()) else {
-             // return;
-          //};
+          let Some(mat) = mats.get_mut(mat_handle.0.id()) else {
+              return;
+          };
           // Zeroth, update the index if needed
           if let Some(forced) = manager.force_index {
               index.ix = forced;
@@ -584,7 +588,7 @@ fn play_animations(
               manager.force_index = None;
           }
           // First update the material
-          /*
+          
           mat.ix_length_flipx_flipy[0] = index.ix as f32;
           mat.ix_length_flipx_flipy[1] = data.length as f32;
           mat.ix_length_flipx_flipy[2] = if data.flip_x { -1.0 } else { 1.0 };
@@ -605,7 +609,6 @@ fn play_animations(
                   mat.xoff_yoff_xrep_yrep[3] = 1.0;
               }
           }
-           */
           // Then progress the animation (so in case it swaps it'll be correct by next frame)
           let current_node = current_node.clone();
           index.time += time_factor;
@@ -616,7 +619,7 @@ fn play_animations(
           if index.ix >= data.length {
               index.ix = 0;
               if current_node.next.is_some() {
-                  //manager.set_key(current_node.next.unwrap(), &mut commands);
+                  manager.set_key(current_node.next.unwrap(), &mut commands);
               }
           }
       }
@@ -641,4 +644,5 @@ pub(super) fn register_manager(app: &mut App) {
     app.register_type::<AnimationData>();
     app.register_type::<AnimationMaterial>();
     app.register_type::<MultiAnimationManager>();
+    app.register_type::<AnimationMaterialComponent>();
 }

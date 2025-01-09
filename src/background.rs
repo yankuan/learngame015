@@ -18,7 +18,7 @@ fn spawn_sky(commands: &mut ChildBuilder) {
             path: "debug/background_sky.png",
             size: (IDEAL_WIDTH, IDEAL_HEIGHT),
         })
-        ),
+        .with_render_layers(BgSpriteCamera::render_layers())),
     ));
     commands.spawn((
         Name::new("far_clouds"),
@@ -27,9 +27,8 @@ fn spawn_sky(commands: &mut ChildBuilder) {
             path: "debug/background_clouds_far.png",
             size: (IDEAL_WIDTH, IDEAL_HEIGHT),
         })
-        //.with_render_layers(BgSpriteCamera::render_layers())
-        //.with_scroll(Vec2::new(0.002, 0.0))
-    ),
+        .with_render_layers(BgSpriteCamera::render_layers())
+        .with_scroll(Vec2::new(0.002, 0.0))),
     ));
     commands.spawn((
         Name::new("close_clouds"),
@@ -38,9 +37,8 @@ fn spawn_sky(commands: &mut ChildBuilder) {
             path: "debug/background_clouds_close.png",
             size: (IDEAL_WIDTH, IDEAL_HEIGHT),
         })
-        //.with_render_layers(BgSpriteCamera::render_layers())
-        //.with_scroll(Vec2::new(0.01, 0.0))
-    ),
+        .with_render_layers(BgSpriteCamera::render_layers())
+        .with_scroll(Vec2::new(0.01, 0.0))),
     ));
 }
 
@@ -71,8 +69,7 @@ impl BackgroundKind {
                             path: "debug/background.png",
                             size: (IDEAL_WIDTH, IDEAL_HEIGHT),
                         })
-                        //.with_render_layers(BgSpriteCamera::render_layers())
-                    ),
+                        .with_render_layers(BgSpriteCamera::render_layers())),
                     ));
                 }
                 BackgroundKind::Forest => {

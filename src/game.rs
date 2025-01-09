@@ -141,7 +141,7 @@ fn player_about(
                   if (**score == 11) {
                       next_state.set(GameState::Victory);
                   }
-                  //ma.manager_mut("core").reset_key_with_points("death", &mut commands);
+                  ma.manager_mut("core").reset_key_with_points("death", &mut commands);
                   //mul.manager_mut("core").reset_key_with_points("death", &mut commands);
                   //commands.entity(ent_brick).despawn_descendants();
               }
