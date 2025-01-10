@@ -106,7 +106,7 @@ fn initcreate3(
 fn spawn_sprite(commands: &mut Commands, asset_server: &AssetServer, position: Vec3, name: &str) {  
     commands.spawn((  
         Sprite {  
-            //texture: asset_server.load("branding/28_brick.png"),  
+            //image: asset_server.load("branding/28_brick.png"),  
             ..default()  
         }, 
         Transform::from_translation(position), 

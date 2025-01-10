@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashSet;
 use bevy::{render::primitives::Aabb, sprite::*, utils::hashbrown::HashMap};
+use bevy_egui::egui::debug_text::print;
 use crate::{consts::*, mat};
 use crate::math::*;
 use crate::macros::*;
@@ -368,9 +369,12 @@ struct AnimationBodyMarker {
 }
 
 #[derive(Component, Default, Clone, Reflect)]
-struct AnimationMaterialComponent(Handle<mat::AnimationMaterial>);  
+struct AnimationMaterialComponent(
+     Handle<mat::AnimationMaterial>,
 
-#[derive(Bundle, Default)]
+);  
+
+#[derive(Default, Bundle)]
 struct AnimationBundle {
       name: Name,
       marker: AnimationBodyMarker,
@@ -379,7 +383,7 @@ struct AnimationBundle {
       pace: AnimationData,
       render_layers: RenderLayers,
       mesh: Mesh2d,
-      material: AnimationMaterialComponent,
+      material: MeshMaterial2d<AnimationMaterial>,
       spatial: Transform,
   }
 
@@ -441,7 +445,7 @@ fn update_animation_bodies(
             &mut Transform,
             &mut Visibility,
             &Mesh2d,
-            &AnimationMaterialComponent,
+            &MeshMaterial2d<AnimationMaterial>,
         ),
         Without<AnimationStable>,
     >,
@@ -528,6 +532,7 @@ fn update_animation_bodies(
           let x_rep = mesh_size.x as f32 / current_node.sprite.size.x as f32;
           let y_rep = mesh_size.y as f32 / current_node.sprite.size.y as f32;
           let image_handle = map.handle_map.get(&manager.key).unwrap().clone();
+          println!("{}", &manager.key);
           let matss = AnimationMaterial::from_handle(
                 image_handle,
                 data.length,
@@ -539,7 +544,7 @@ fn update_animation_bodies(
           // TODO: I can see a world where points live on the node, not the manager
           // Then we might be able to cache the work of making these meshes? Idk how much mem that would take
           let mesh = points_to_mesh(&manager.points, &mut meshes);
-          commands.entity(eid).insert(AnimationMaterialComponent(mat_ass));
+          commands.entity(eid).insert(MeshMaterial2d(mat_ass));
           commands.entity(eid).insert(mesh);
           commands.entity(eid).remove::<Aabb>(); // Makes the engine recalculate the Aabb so culling is right
 
@@ -560,7 +565,7 @@ fn play_animations(
           (
               &Parent,
               &AnimationBodyMarker,
-              &AnimationMaterialComponent,
+              &MeshMaterial2d<AnimationMaterial>,
               &mut AnimationIndex,
               &AnimationData,
           ),
@@ -579,8 +584,10 @@ fn play_animations(
           let manager = multi.manager_mut(&body.key);
           let current_node = manager.current_node();
           let Some(mat) = mats.get_mut(mat_handle.0.id()) else {
+            println!("aaaa");
               return;
           };
+          //println!("bbbb");
           // Zeroth, update the index if needed
           if let Some(forced) = manager.force_index {
               index.ix = forced;
